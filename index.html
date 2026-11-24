@@ -72,10 +72,11 @@
   .badge.fill{background:var(--black); color:var(--white);}
   .badge.ghost{border:1px solid var(--border-dark); color:var(--text-sub); font-weight:500;}
 
-  .tags{display:flex; gap:4px; flex-wrap:wrap;}
+  .tags{display:flex; gap:5px; flex-wrap:wrap;}
   .tag{
-    background:var(--bg3); border:1px solid var(--border-dark); border-radius:4px;
-    padding:2px 7px; font-size:11.5px; color:var(--text);
+    background:var(--black); color:var(--white); border:1px solid var(--black); border-radius:14px;
+    padding:3px 10px; font-size:11.5px; font-weight:700; letter-spacing:.2px;
+    box-shadow:0 1px 3px rgba(0,0,0,.28);
   }
 
   .link-chip{font-size:12px; color:var(--text); text-decoration:underline; word-break:break-all;}
@@ -83,6 +84,20 @@
   .empty-cell{color:var(--text-faint);}
 
   .row-actions{display:flex; gap:6px;}
+
+  tr.group-header{cursor:pointer; background:var(--bg2);}
+  tr.group-header:hover{background:var(--bg3);}
+  tr.group-header td{font-weight:800;}
+  .group-toggle{display:inline-block; width:14px; margin-right:6px; color:var(--text-sub); font-size:11px;}
+  .group-count{display:inline-block; margin-left:8px; font-size:11.5px; font-weight:700; color:var(--white); background:var(--black); border-radius:10px; padding:1px 9px;}
+  tr.sub-row td.name{padding-left:30px; position:relative;}
+  tr.sub-row td.name::before{content:"↳"; position:absolute; left:12px; color:var(--text-faint); font-size:12px;}
+  tr.sub-row{background:#fbfbfb;}
+  tr.sub-row:hover{background:var(--bg2);}
+  .color-row{display:flex; align-items:center; gap:10px;}
+  .color-row input[type=checkbox]{width:16px; height:16px;}
+  .color-row input[type=color]{width:46px; height:32px; padding:2px; border:1px solid var(--border-dark); border-radius:6px; cursor:pointer; background:var(--white);}
+  .color-row label.chk{display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:500; cursor:pointer;}
 
   .empty-state{
     text-align:center; padding:60px 20px; color:var(--text-faint); font-size:14px;
@@ -191,6 +206,13 @@
         <input type="text" id="f_name" placeholder="캐릭터 이름" required>
       </div>
       <div class="field">
+        <label>이름 색상 <span class="hint">같은 이름을 가진 모든 항목에 함께 적용됩니다</span></label>
+        <div class="color-row">
+          <label class="chk"><input type="checkbox" id="f_useColor"> 색상 사용</label>
+          <input type="color" id="f_nameColor" value="#000000">
+        </div>
+      </div>
+      <div class="field">
         <label>이벤트 이름</label>
         <input type="text" id="f_eventName" placeholder="이벤트 / 배너 이름">
       </div>
@@ -250,14 +272,21 @@ const firebaseConfig = {
 };
 
 const RARITY = ["★1","★2","★3","★4","★5","★6"];
-const ACQUIRE = ["가챠","보상","10th","스타일"];
+const ACQUIRE = ["가챠","보상"];
 const STATUS = ["올클","광휘각","명성","해각","달각","미각","없음"];
 
-let app, db, charsRef;
+let app, db, charsRef, colorsRef;
 let allData = {};
+let nameColors = {};
+let expandedGroups = new Set();
 let currentTags = [];
 let editingId = null;
 let sortKey = null, sortAsc = true;
+let initialColorChecked = false, initialColorValue = '#000000';
+
+function sanitizeNameKey(name){
+  return String(name || '').trim().replace(/[.#$\[\]/]/g, '_');
+}
 
 const connStatus = document.getElementById('connStatus');
 
@@ -274,6 +303,11 @@ if(isConfigFilled()){
     connStatus.className = 'status ok';
     onValue(charsRef, (snapshot) => {
       allData = snapshot.val() || {};
+      render();
+    });
+    colorsRef = ref(db, 'nameColors');
+    onValue(colorsRef, (snapshot) => {
+      nameColors = snapshot.val() || {};
       render();
     });
   }catch(e){
@@ -376,10 +410,17 @@ function openModal(id){
     setRadio('acquire', d.acquire);
     setRadio('status', d.status);
     setRadio('secret', d.secret);
+    const existingColor = nameColors[sanitizeNameKey(d.name)];
+    initialColorChecked = !!existingColor;
+    initialColorValue = existingColor || '#000000';
   } else {
     modalTitle.textContent = '캐릭터 추가';
     deleteBtn.style.display = 'none';
+    initialColorChecked = false;
+    initialColorValue = '#000000';
   }
+  document.getElementById('f_useColor').checked = initialColorChecked;
+  document.getElementById('f_nameColor').value = initialColorValue;
   renderTags();
   modalOverlay.classList.add('show');
 }
@@ -399,6 +440,14 @@ function closeModal(){
 
 document.getElementById('addBtn').onclick = ()=> openModal(null);
 document.getElementById('cancelBtn').onclick = closeModal;
+document.getElementById('f_name').addEventListener('input', ()=>{
+  if(editingId) return;
+  const existing = nameColors[sanitizeNameKey(document.getElementById('f_name').value.trim())];
+  if(existing){
+    document.getElementById('f_useColor').checked = true;
+    document.getElementById('f_nameColor').value = existing;
+  }
+});
 modalOverlay.addEventListener('click', (e)=>{ if(e.target === modalOverlay) closeModal(); });
 
 charForm.addEventListener('submit', (e)=>{
@@ -420,6 +469,20 @@ charForm.addEventListener('submit', (e)=>{
   } else {
     push(charsRef, payload);
   }
+
+  const colorKey = sanitizeNameKey(payload.name);
+  if(colorKey){
+    const nowChecked = document.getElementById('f_useColor').checked;
+    const newColorVal = document.getElementById('f_nameColor').value;
+    if(nowChecked){
+      if(!initialColorChecked || newColorVal !== initialColorValue){
+        set(ref(db, 'nameColors/' + colorKey), newColorVal);
+      }
+    } else if(initialColorChecked){
+      remove(ref(db, 'nameColors/' + colorKey));
+    }
+  }
+
   closeModal();
 });
 
@@ -463,6 +526,42 @@ function statusBadge(val){
   return `<span class="badge">${val}</span>`;
 }
 
+function buildRow(id, d, isSub){
+  const accounts = Array.isArray(d.accounts) ? d.accounts : [];
+  const accountsHtml = accounts.length
+    ? `<div class="tags">${accounts.map(a=>`<span class="tag">${escapeHtml(a)}</span>`).join('')}</div>`
+    : `<span class="empty-cell">—</span>`;
+  const backupHtml = d.backup
+    ? `<a class="link-chip" href="${escapeHtml(d.backup)}" target="_blank" rel="noopener">링크</a>`
+    : `<span class="empty-cell">—</span>`;
+  const color = nameColors[sanitizeNameKey(d.name)];
+  const nameStyle = color ? ` style="color:${color};"` : '';
+  return `
+    <tr data-id="${id}" class="${isSub ? 'sub-row' : ''}">
+      <td class="name"><span${nameStyle}>${escapeHtml(d.name||'')}</span></td>
+      <td>${escapeHtml(d.eventName||'')}</td>
+      <td>${d.rarity ? `<span class="badge fill">${d.rarity}</span>` : '<span class="empty-cell">—</span>'}</td>
+      <td>${d.acquire ? `<span class="badge">${d.acquire}</span>` : '<span class="empty-cell">—</span>'}</td>
+      <td>${statusBadge(d.status)}</td>
+      <td>${statusBadge(d.secret)}</td>
+      <td>${accountsHtml}</td>
+      <td>${backupHtml}</td>
+      <td>
+        <div class="row-actions">
+          <button class="btn outline small" data-edit="${id}">수정</button>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function groupRepValue(g){
+  if(!sortKey) return g.items.length ? (g.items[0][1].updatedAt || 0) : 0;
+  if(sortKey === 'name') return g.name;
+  const v = g.items[0][1][sortKey];
+  return Array.isArray(v) ? v.join(',') : (v || '');
+}
+
 function render(){
   const tbody = document.getElementById('tableBody');
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
@@ -480,52 +579,75 @@ function render(){
     return true;
   });
 
-  if(sortKey){
-    entries.sort((a,b)=>{
-      let va = a[1][sortKey], vb = b[1][sortKey];
-      if(Array.isArray(va)) va = va.join(',');
-      if(Array.isArray(vb)) vb = vb.join(',');
-      va = (va || '').toString(); vb = (vb || '').toString();
-      return sortAsc ? va.localeCompare(vb, 'ko') : vb.localeCompare(va, 'ko');
-    });
-  } else {
-    entries.sort((a,b)=> (b[1].updatedAt||0) - (a[1].updatedAt||0));
-  }
-
   if(entries.length === 0){
     tbody.innerHTML = `<tr><td colspan="9" class="empty-state">표시할 데이터가 없습니다.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = entries.map(([id, d])=>{
-    const accounts = Array.isArray(d.accounts) ? d.accounts : [];
-    const accountsHtml = accounts.length
-      ? `<div class="tags">${accounts.map(a=>`<span class="tag">${escapeHtml(a)}</span>`).join('')}</div>`
-      : `<span class="empty-cell">—</span>`;
-    const backupHtml = d.backup
-      ? `<a class="link-chip" href="${escapeHtml(d.backup)}" target="_blank" rel="noopener">링크</a>`
-      : `<span class="empty-cell">—</span>`;
-    return `
-      <tr data-id="${id}">
-        <td class="name">${escapeHtml(d.name||'')}</td>
-        <td>${escapeHtml(d.eventName||'')}</td>
-        <td>${d.rarity ? `<span class="badge fill">${d.rarity}</span>` : '<span class="empty-cell">—</span>'}</td>
-        <td>${d.acquire ? `<span class="badge">${d.acquire}</span>` : '<span class="empty-cell">—</span>'}</td>
-        <td>${statusBadge(d.status)}</td>
-        <td>${statusBadge(d.secret)}</td>
-        <td>${accountsHtml}</td>
-        <td>${backupHtml}</td>
-        <td>
-          <div class="row-actions">
-            <button class="btn outline small" data-edit="${id}">수정</button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
+  const groupsMap = new Map();
+  entries.forEach(([id, d])=>{
+    const key = (d.name || '').trim();
+    if(!groupsMap.has(key)) groupsMap.set(key, []);
+    groupsMap.get(key).push([id, d]);
+  });
+
+  const groups = Array.from(groupsMap.entries()).map(([name, items])=>{
+    const sorted = items.slice();
+    if(sortKey && sortKey !== 'name'){
+      sorted.sort((a,b)=>{
+        let va = a[1][sortKey], vb = b[1][sortKey];
+        if(Array.isArray(va)) va = va.join(',');
+        if(Array.isArray(vb)) vb = vb.join(',');
+        va = (va || '').toString(); vb = (vb || '').toString();
+        return sortAsc ? va.localeCompare(vb, 'ko') : vb.localeCompare(va, 'ko');
+      });
+    } else {
+      sorted.sort((a,b)=> (b[1].updatedAt||0) - (a[1].updatedAt||0));
+    }
+    return { name, items: sorted };
+  });
+
+  groups.sort((a,b)=>{
+    const va = groupRepValue(a), vb = groupRepValue(b);
+    if(!sortKey){ return vb - va; }
+    if(typeof va === 'number' && typeof vb === 'number'){ return sortAsc ? va-vb : vb-va; }
+    return sortAsc ? String(va).localeCompare(String(vb), 'ko') : String(vb).localeCompare(String(va), 'ko');
+  });
+
+  let html = '';
+  groups.forEach(g=>{
+    const items = g.items;
+    if(items.length > 1){
+      const expanded = expandedGroups.has(g.name);
+      const arrow = expanded ? '▾' : '▸';
+      const color = nameColors[sanitizeNameKey(g.name)];
+      const nameStyle = color ? ` style="color:${color};"` : '';
+      html += `
+        <tr class="group-header" data-group="${escapeHtml(g.name)}">
+          <td class="name"><span class="group-toggle">${arrow}</span><span${nameStyle}>${escapeHtml(g.name || '(이름없음)')}</span><span class="group-count">${items.length}개</span></td>
+          <td colspan="8"></td>
+        </tr>
+      `;
+      if(expanded){
+        items.forEach(([id, d])=>{ html += buildRow(id, d, true); });
+      }
+    } else {
+      const [id, d] = items[0];
+      html += buildRow(id, d, false);
+    }
+  });
+
+  tbody.innerHTML = html;
 
   tbody.querySelectorAll('[data-edit]').forEach(btn=>{
-    btn.addEventListener('click', ()=> openModal(btn.dataset.edit));
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); openModal(btn.dataset.edit); });
+  });
+  tbody.querySelectorAll('tr.group-header').forEach(tr=>{
+    tr.addEventListener('click', ()=>{
+      const name = tr.dataset.group;
+      if(expandedGroups.has(name)) expandedGroups.delete(name); else expandedGroups.add(name);
+      render();
+    });
   });
 }
 
