@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>캐릭터 소지 분류</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#ffffff; --bg2:#f5f5f5; --bg3:#ececec;
+    --border:#d4d4d4; --border-dark:#8a8a8a;
+    --text:#111111; --text-sub:#5a5a5a; --text-faint:#9a9a9a;
+    --black:#000000; --white:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:'Pretendard', -apple-system, sans-serif;
+    background:var(--bg); color:var(--text); font-size:14px;
+  }
+  .wrap{max-width:1400px; margin:0 auto; padding:28px 20px 80px;}
+  header{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:22px; flex-wrap:wrap; gap:12px; border-bottom:2px solid var(--black); padding-bottom:16px;
+  }
+  h1{font-size:22px; font-weight:800; margin:0; letter-spacing:-0.3px;}
+  .status{font-size:12px; color:var(--text-sub);}
+  .status.ok::before{content:"● "; color:#2e7d32;}
+  .status.off::before{content:"● "; color:#c62828;}
+
+  .toolbar{
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+    margin-bottom:16px; justify-content:space-between;
+  }
+  .toolbar-left, .toolbar-right{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  input[type=text], select, input[type=url]{
+    font-family:inherit; font-size:13px; padding:8px 10px;
+    border:1px solid var(--border-dark); border-radius:6px; background:var(--white); color:var(--text);
+  }
+  input[type=text]:focus, select:focus, input[type=url]:focus{outline:2px solid var(--black); outline-offset:-1px;}
+  .btn{
+    font-family:inherit; font-size:13px; font-weight:600; padding:9px 16px;
+    border:1px solid var(--black); border-radius:6px; background:var(--black); color:var(--white);
+    cursor:pointer; transition:opacity .15s;
+  }
+  .btn:hover{opacity:.78;}
+  .btn.outline{background:var(--white); color:var(--black); border:1px solid var(--border-dark);}
+  .btn.outline:hover{background:var(--bg2); opacity:1;}
+  .btn.danger{background:var(--white); color:#b00020; border:1px solid #b00020;}
+  .btn.small{padding:5px 10px; font-size:12px;}
+
+  .table-scroll{
+    overflow-x:auto; border:1px solid var(--border-dark); border-radius:8px;
+  }
+  table{border-collapse:collapse; width:100%; min-width:1180px; background:var(--white);}
+  th, td{padding:10px 12px; border-bottom:1px solid var(--border); text-align:left; vertical-align:middle;}
+  th{
+    background:var(--black); color:var(--white); font-weight:700; font-size:12.5px;
+    cursor:pointer; user-select:none; white-space:nowrap; position:sticky; top:0;
+  }
+  th:hover{background:#2a2a2a;}
+  th .arrow{opacity:.6; font-size:10px; margin-left:4px;}
+  tbody tr:hover{background:var(--bg2);}
+  tbody tr:nth-child(even){background:#fbfbfb;}
+  tbody tr:nth-child(even):hover{background:var(--bg2);}
+  td{font-size:13px;}
+  td.name{font-weight:700;}
+
+  .badge{
+    display:inline-block; padding:2px 9px; border-radius:20px; font-size:12px; font-weight:700;
+    border:1px solid var(--black); background:var(--white); color:var(--black); white-space:nowrap;
+  }
+  .badge.fill{background:var(--black); color:var(--white);}
+  .badge.ghost{border:1px solid var(--border-dark); color:var(--text-sub); font-weight:500;}
+
+  .tags{display:flex; gap:4px; flex-wrap:wrap;}
+  .tag{
+    background:var(--bg3); border:1px solid var(--border-dark); border-radius:4px;
+    padding:2px 7px; font-size:11.5px; color:var(--text);
+  }
+
+  .link-chip{font-size:12px; color:var(--text); text-decoration:underline; word-break:break-all;}
+  .link-chip:hover{color:var(--text-sub);}
+  .empty-cell{color:var(--text-faint);}
+
+  .row-actions{display:flex; gap:6px;}
+
+  .empty-state{
+    text-align:center; padding:60px 20px; color:var(--text-faint); font-size:14px;
+  }
+
+  /* Modal */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.5); display:none;
+    align-items:center; justify-content:center; z-index:100; padding:20px;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal{
+    background:var(--white); border-radius:10px; width:100%; max-width:560px;
+    max-height:88vh; overflow-y:auto; padding:26px; border:1px solid var(--black);
+  }
+  .modal h2{margin:0 0 18px; font-size:18px; font-weight:800;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12.5px; font-weight:700; margin-bottom:6px; color:var(--text);}
+  .field .hint{font-weight:400; color:var(--text-faint); font-size:11px; margin-left:4px;}
+  .field input[type=text], .field input[type=url], .field select{
+    width:100%; padding:9px 10px;
+  }
+  .radio-group{display:flex; gap:8px; flex-wrap:wrap;}
+  .radio-group label{
+    display:flex; align-items:center; gap:5px; font-size:12.5px; font-weight:500;
+    border:1px solid var(--border-dark); border-radius:6px; padding:6px 10px; cursor:pointer;
+    background:var(--white); user-select:none;
+  }
+  .radio-group input{accent-color:#000;}
+  .radio-group label:has(input:checked){background:var(--black); color:var(--white); border-color:var(--black);}
+
+  .tag-input-box{
+    display:flex; flex-wrap:wrap; gap:6px; border:1px solid var(--border-dark);
+    border-radius:6px; padding:7px 8px; min-height:40px; align-items:center;
+  }
+  .tag-input-box input{border:none; outline:none; flex:1; min-width:100px; font-size:13px; padding:3px;}
+  .tag-chip{
+    background:var(--black); color:var(--white); border-radius:4px; padding:3px 8px;
+    font-size:12px; display:flex; align-items:center; gap:6px;
+  }
+  .tag-chip button{
+    background:none; border:none; color:var(--white); cursor:pointer; font-size:12px; padding:0; line-height:1;
+  }
+  .modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:20px; padding-top:16px; border-top:1px solid var(--border);}
+
+  footer{margin-top:24px; text-align:center; color:var(--text-faint); font-size:11.5px;}
+
+  @media (max-width:640px){
+    h1{font-size:18px;}
+    .toolbar{flex-direction:column; align-items:stretch;}
+    .toolbar-left, .toolbar-right{justify-content:stretch;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>캐릭터 소지 분류표</h1>
+    <div id="connStatus" class="status off">Firebase 미설정 — 설정 전까지 공동편집 불가</div>
+  </header>
+
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <input type="text" id="searchInput" placeholder="이름 / 이벤트명 검색" style="width:220px;">
+      <select id="filterRarity"><option value="">레어도 전체</option></select>
+      <select id="filterAcquire"><option value="">획득경로 전체</option></select>
+      <select id="filterStatus"><option value="">보유현황 전체</option></select>
+    </div>
+    <div class="toolbar-right">
+      <button class="btn outline small" id="exportBtn">JSON 내보내기</button>
+      <button class="btn" id="addBtn">+ 캐릭터 추가</button>
+    </div>
+  </div>
+
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th data-key="name">이름 <span class="arrow"></span></th>
+          <th data-key="eventName">이벤트 이름 <span class="arrow"></span></th>
+          <th data-key="rarity">레어도 <span class="arrow"></span></th>
+          <th data-key="acquire">획득 경로 <span class="arrow"></span></th>
+          <th data-key="status">보유 현황 <span class="arrow"></span></th>
+          <th data-key="secret">시크릿 여부 <span class="arrow"></span></th>
+          <th data-key="accounts">보유 계정</th>
+          <th data-key="backup">백업 링크</th>
+          <th style="width:90px;">관리</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr><td colspan="9" class="empty-state">Firebase 설정 후 데이터가 여기에 표시됩니다.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>Realtime Database · characters 경로를 사용합니다. 백업 링크는 아는 사람에게만 공유하세요.</footer>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">캐릭터 추가</h2>
+    <form id="charForm">
+      <div class="field">
+        <label>이름</label>
+        <input type="text" id="f_name" placeholder="캐릭터 이름" required>
+      </div>
+      <div class="field">
+        <label>이벤트 이름</label>
+        <input type="text" id="f_eventName" placeholder="이벤트 / 배너 이름">
+      </div>
+      <div class="field">
+        <label>레어도</label>
+        <div class="radio-group" id="g_rarity"></div>
+      </div>
+      <div class="field">
+        <label>획득 경로</label>
+        <div class="radio-group" id="g_acquire"></div>
+      </div>
+      <div class="field">
+        <label>보유 현황</label>
+        <div class="radio-group" id="g_status"></div>
+      </div>
+      <div class="field">
+        <label>시크릿 여부</label>
+        <div class="radio-group" id="g_secret"></div>
+      </div>
+      <div class="field">
+        <label>보유 계정 <span class="hint">입력 후 Enter 또는 쉼표로 구분</span></label>
+        <div class="tag-input-box" id="accountBox">
+          <input type="text" id="f_accountInput" placeholder="계정명 입력...">
+        </div>
+      </div>
+      <div class="field">
+        <label>백업 링크</label>
+        <input type="url" id="f_backup" placeholder="https://...">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn danger" id="deleteBtn" style="display:none;">삭제</button>
+        <button type="button" class="btn outline" id="cancelBtn">취소</button>
+        <button type="submit" class="btn">저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getDatabase, ref, push, onValue, update, remove, set
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+/* =========================================================
+   여기에 Firebase 콘솔에서 복사한 firebaseConfig 값을 붙여넣으세요.
+   (프로젝트 설정 > 일반 > 내 앱 > 웹앱 설정)
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+const RARITY = ["★1","★2","★3","★4","★5","★6"];
+const ACQUIRE = ["가챠","보상"];
+const STATUS = ["올클","광휘각","명성","해각","달각","미각","없음"];
+
+let app, db, charsRef;
+let allData = {};
+let currentTags = [];
+let editingId = null;
+let sortKey = null, sortAsc = true;
+
+const connStatus = document.getElementById('connStatus');
+
+function isConfigFilled(){
+  return firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY";
+}
+
+if(isConfigFilled()){
+  try{
+    app = initializeApp(firebaseConfig);
+    db = getDatabase(app);
+    charsRef = ref(db, 'characters');
+    connStatus.textContent = '실시간 연결됨 — 모두에게 즉시 반영됩니다';
+    connStatus.className = 'status ok';
+    onValue(charsRef, (snapshot) => {
+      allData = snapshot.val() || {};
+      render();
+    });
+  }catch(e){
+    connStatus.textContent = 'Firebase 연결 오류: ' + e.message;
+    connStatus.className = 'status off';
+  }
+} else {
+  connStatus.textContent = 'Firebase 미설정 — 코드 안 firebaseConfig 를 채워주세요';
+}
+
+// build radio groups
+function buildRadioGroup(containerId, name, options, includeEmpty){
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  const opts = includeEmpty ? options : options;
+  opts.forEach((opt, i) => {
+    const label = document.createElement('label');
+    const input = document.createElement('input');
+    input.type = 'radio'; input.name = name; input.value = opt;
+    label.appendChild(input);
+    label.appendChild(document.createTextNode(opt));
+    el.appendChild(label);
+  });
+}
+buildRadioGroup('g_rarity', 'rarity', RARITY);
+buildRadioGroup('g_acquire', 'acquire', ACQUIRE);
+buildRadioGroup('g_status', 'status', STATUS);
+buildRadioGroup('g_secret', 'secret', STATUS);
+
+// populate filter selects
+function fillSelect(id, options){
+  const sel = document.getElementById(id);
+  options.forEach(o=>{
+    const op = document.createElement('option'); op.value=o; op.textContent=o;
+    sel.appendChild(op);
+  });
+}
+fillSelect('filterRarity', RARITY);
+fillSelect('filterAcquire', ACQUIRE);
+fillSelect('filterStatus', STATUS);
+
+// tag input logic
+const accountBox = document.getElementById('accountBox');
+const accountInput = document.getElementById('f_accountInput');
+
+function renderTags(){
+  accountBox.querySelectorAll('.tag-chip').forEach(e=>e.remove());
+  currentTags.forEach((tag, idx)=>{
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.innerHTML = `<span></span><button type="button">×</button>`;
+    chip.querySelector('span').textContent = tag;
+    chip.querySelector('button').onclick = ()=>{ currentTags.splice(idx,1); renderTags(); };
+    accountBox.insertBefore(chip, accountInput);
+  });
+}
+
+function addTagFromInput(){
+  const raw = accountInput.value;
+  raw.split(',').forEach(part=>{
+    const v = part.trim();
+    if(v && !currentTags.includes(v)) currentTags.push(v);
+  });
+  accountInput.value = '';
+  renderTags();
+}
+
+accountInput.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' || e.key === ','){
+    e.preventDefault();
+    addTagFromInput();
+  } else if(e.key === 'Backspace' && accountInput.value === '' && currentTags.length){
+    currentTags.pop();
+    renderTags();
+  }
+});
+accountInput.addEventListener('blur', ()=>{ if(accountInput.value.trim()) addTagFromInput(); });
+
+// modal controls
+const modalOverlay = document.getElementById('modalOverlay');
+const modalTitle = document.getElementById('modalTitle');
+const charForm = document.getElementById('charForm');
+const deleteBtn = document.getElementById('deleteBtn');
+
+function openModal(id){
+  editingId = id || null;
+  currentTags = [];
+  charForm.reset();
+  document.querySelectorAll('.radio-group input').forEach(r=>r.checked=false);
+
+  if(id && allData[id]){
+    const d = allData[id];
+    modalTitle.textContent = '캐릭터 수정';
+    deleteBtn.style.display = 'inline-block';
+    document.getElementById('f_name').value = d.name || '';
+    document.getElementById('f_eventName').value = d.eventName || '';
+    document.getElementById('f_backup').value = d.backup || '';
+    currentTags = Array.isArray(d.accounts) ? [...d.accounts] : (d.accounts ? d.accounts.split(',').map(s=>s.trim()).filter(Boolean) : []);
+    setRadio('rarity', d.rarity);
+    setRadio('acquire', d.acquire);
+    setRadio('status', d.status);
+    setRadio('secret', d.secret);
+  } else {
+    modalTitle.textContent = '캐릭터 추가';
+    deleteBtn.style.display = 'none';
+  }
+  renderTags();
+  modalOverlay.classList.add('show');
+}
+function setRadio(name, value){
+  if(!value) return;
+  const el = document.querySelector(`input[name="${name}"][value="${value}"]`);
+  if(el) el.checked = true;
+}
+function getRadio(name){
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : '';
+}
+function closeModal(){
+  modalOverlay.classList.remove('show');
+  editingId = null;
+}
+
+document.getElementById('addBtn').onclick = ()=> openModal(null);
+document.getElementById('cancelBtn').onclick = closeModal;
+modalOverlay.addEventListener('click', (e)=>{ if(e.target === modalOverlay) closeModal(); });
+
+charForm.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  if(!charsRef){ alert('Firebase가 설정되지 않아 저장할 수 없습니다.'); return; }
+  const payload = {
+    name: document.getElementById('f_name').value.trim(),
+    eventName: document.getElementById('f_eventName').value.trim(),
+    rarity: getRadio('rarity'),
+    acquire: getRadio('acquire'),
+    status: getRadio('status'),
+    secret: getRadio('secret'),
+    accounts: currentTags,
+    backup: document.getElementById('f_backup').value.trim(),
+    updatedAt: Date.now()
+  };
+  if(editingId){
+    update(ref(db, 'characters/' + editingId), payload);
+  } else {
+    push(charsRef, payload);
+  }
+  closeModal();
+});
+
+deleteBtn.onclick = ()=>{
+  if(!editingId) return;
+  if(confirm('이 캐릭터 기록을 삭제할까요? 모두의 화면에서 삭제됩니다.')){
+    remove(ref(db, 'characters/' + editingId));
+    closeModal();
+  }
+};
+
+// export
+document.getElementById('exportBtn').onclick = ()=>{
+  const blob = new Blob([JSON.stringify(allData, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'characters_backup_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+// search & filter
+['searchInput','filterRarity','filterAcquire','filterStatus'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', render);
+  document.getElementById(id).addEventListener('change', render);
+});
+
+// sorting
+document.querySelectorAll('th[data-key]').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.key;
+    if(sortKey === key){ sortAsc = !sortAsc; } else { sortKey = key; sortAsc = true; }
+    document.querySelectorAll('th .arrow').forEach(a=>a.textContent='');
+    th.querySelector('.arrow').textContent = sortAsc ? '▲' : '▼';
+    render();
+  });
+});
+
+function statusBadge(val){
+  if(!val || val === '없음') return `<span class="badge ghost">${val || '없음'}</span>`;
+  return `<span class="badge">${val}</span>`;
+}
+
+function render(){
+  const tbody = document.getElementById('tableBody');
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const fRarity = document.getElementById('filterRarity').value;
+  const fAcquire = document.getElementById('filterAcquire').value;
+  const fStatus = document.getElementById('filterStatus').value;
+
+  let entries = Object.entries(allData);
+
+  entries = entries.filter(([id, d])=>{
+    if(q && !( (d.name||'').toLowerCase().includes(q) || (d.eventName||'').toLowerCase().includes(q) )) return false;
+    if(fRarity && d.rarity !== fRarity) return false;
+    if(fAcquire && d.acquire !== fAcquire) return false;
+    if(fStatus && d.status !== fStatus) return false;
+    return true;
+  });
+
+  if(sortKey){
+    entries.sort((a,b)=>{
+      let va = a[1][sortKey], vb = b[1][sortKey];
+      if(Array.isArray(va)) va = va.join(',');
+      if(Array.isArray(vb)) vb = vb.join(',');
+      va = (va || '').toString(); vb = (vb || '').toString();
+      return sortAsc ? va.localeCompare(vb, 'ko') : vb.localeCompare(va, 'ko');
+    });
+  } else {
+    entries.sort((a,b)=> (b[1].updatedAt||0) - (a[1].updatedAt||0));
+  }
+
+  if(entries.length === 0){
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">표시할 데이터가 없습니다.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = entries.map(([id, d])=>{
+    const accounts = Array.isArray(d.accounts) ? d.accounts : [];
+    const accountsHtml = accounts.length
+      ? `<div class="tags">${accounts.map(a=>`<span class="tag">${escapeHtml(a)}</span>`).join('')}</div>`
+      : `<span class="empty-cell">—</span>`;
+    const backupHtml = d.backup
+      ? `<a class="link-chip" href="${escapeHtml(d.backup)}" target="_blank" rel="noopener">링크</a>`
+      : `<span class="empty-cell">—</span>`;
+    return `
+      <tr data-id="${id}">
+        <td class="name">${escapeHtml(d.name||'')}</td>
+        <td>${escapeHtml(d.eventName||'')}</td>
+        <td>${d.rarity ? `<span class="badge fill">${d.rarity}</span>` : '<span class="empty-cell">—</span>'}</td>
+        <td>${d.acquire ? `<span class="badge">${d.acquire}</span>` : '<span class="empty-cell">—</span>'}</td>
+        <td>${statusBadge(d.status)}</td>
+        <td>${statusBadge(d.secret)}</td>
+        <td>${accountsHtml}</td>
+        <td>${backupHtml}</td>
+        <td>
+          <div class="row-actions">
+            <button class="btn outline small" data-edit="${id}">수정</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.querySelectorAll('[data-edit]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openModal(btn.dataset.edit));
+  });
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+render();
+</script>
+</body>
+</html>
