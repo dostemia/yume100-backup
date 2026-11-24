@@ -236,7 +236,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 /* =========================================================
-
+   여기에 Firebase 콘솔에서 복사한 firebaseConfig 값을 붙여넣으세요.
+   (프로젝트 설정 > 일반 > 내 앱 > 웹앱 설정)
    ========================================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyDlfMisCcnIZ0REHbPWfmI78_r47O6uoHo",
@@ -247,6 +248,7 @@ const firebaseConfig = {
   messagingSenderId: "134711422834",
   appId: "1:134711422834:web:1322bbfa10b91dc712b7eb"
 };
+
 const RARITY = ["★1","★2","★3","★4","★5","★6"];
 const ACQUIRE = ["가챠","보상"];
 const STATUS = ["올클","광휘각","명성","해각","달각","미각","없음"];
@@ -260,13 +262,7 @@ let sortKey = null, sortAsc = true;
 const connStatus = document.getElementById('connStatus');
 
 function isConfigFilled(){
-  return firebaseConfig.apiKey && firebaseConfig.apiKey !== "AIzaSyDlfMisCcnIZ0REHbPWfmI78_r47O6uoHo",   authDomain: "yume100-backup-1124.firebaseapp.com",
-  databaseURL: "https://yume100-backup-1124-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "yume100-backup-1124",
-  storageBucket: "yume100-backup-1124.firebasestorage.app",
-  messagingSenderId: "134711422834",
-  appId: "1:134711422834:web:1322bbfa10b91dc712b7eb"
-;
+  return firebaseConfig.apiKey && firebaseConfig.apiKey !== "AIzaSyDlfMisCcnIZ0REHbPWfmI78_r47O6uoHo";
 }
 
 if(isConfigFilled()){
