@@ -260,7 +260,13 @@ let sortKey = null, sortAsc = true;
 const connStatus = document.getElementById('connStatus');
 
 function isConfigFilled(){
-  return firebaseConfig.apiKey && firebaseConfig.apiKey !== "AIzaSyDlfMisCcnIZ0REHbPWfmI78_r47O6uoHo";
+  return firebaseConfig.apiKey && firebaseConfig.apiKey !== "AIzaSyDlfMisCcnIZ0REHbPWfmI78_r47O6uoHo",   authDomain: "yume100-backup-1124.firebaseapp.com",
+  databaseURL: "https://yume100-backup-1124-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "yume100-backup-1124",
+  storageBucket: "yume100-backup-1124.firebasestorage.app",
+  messagingSenderId: "134711422834",
+  appId: "1:134711422834:web:1322bbfa10b91dc712b7eb"
+;
 }
 
 if(isConfigFilled()){
