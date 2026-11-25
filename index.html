@@ -71,6 +71,7 @@
   }
   .badge.fill{background:var(--black); color:var(--white);}
   .badge.ghost{border:1px solid var(--border-dark); color:var(--text-sub); font-weight:500;}
+  .badge.allclear{background:#1d00b2; color:#ffffff; border:1px solid #1d00b2;}
 
   .tags{display:flex; gap:5px; flex-wrap:wrap;}
   .tag{
@@ -521,8 +522,9 @@ document.querySelectorAll('th[data-key]').forEach(th=>{
   });
 });
 
-function statusBadge(val){
+function statusBadge(val, isAllClearHighlight){
   if(!val || val === '없음') return `<span class="badge ghost">${val || '없음'}</span>`;
+  if(val === '올클' && isAllClearHighlight) return `<span class="badge allclear">${val}</span>`;
   return `<span class="badge">${val}</span>`;
 }
 
@@ -542,8 +544,8 @@ function buildRow(id, d, isSub){
       <td>${escapeHtml(d.eventName||'')}</td>
       <td>${d.rarity ? `<span class="badge fill">${d.rarity}</span>` : '<span class="empty-cell">—</span>'}</td>
       <td>${d.acquire ? `<span class="badge">${d.acquire}</span>` : '<span class="empty-cell">—</span>'}</td>
-      <td>${statusBadge(d.status)}</td>
-      <td>${statusBadge(d.secret)}</td>
+      <td>${statusBadge(d.status, d.status === '올클' && d.secret === '올클')}</td>
+      <td>${statusBadge(d.secret, d.status === '올클' && d.secret === '올클')}</td>
       <td>${accountsHtml}</td>
       <td>${backupHtml}</td>
       <td>
